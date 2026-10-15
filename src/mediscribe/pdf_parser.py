@@ -52,6 +52,12 @@ def extract_text_from_pdf(file_bytes: bytes) -> ParsedDocument:
                     "No PDF parser available. Install pdfplumber, pypdf, or PyPDF2: "
                     "pip install pdfplumber"
                 )
+            except Exception as e:
+                raise ValueError(f"Failed to parse PDF document: {e}") from e
+        except Exception as e:
+            raise ValueError(f"Failed to parse PDF document: {e}") from e
+    except Exception as e:
+        raise ValueError(f"Failed to parse PDF document: {e}") from e
 
     if not text.strip():
         raise ValueError("Could not extract any text from the uploaded PDF.")
@@ -89,11 +95,11 @@ def segment_into_turns(text: str) -> list[dict]:
     """Segment raw text into pseudo-transcript turns.
 
     Heuristic:
-    - Lines starting with known speaker labels ("Doctor:", "Patient:", etc.) become labelled turns.
+    - Lines starting with known speaker labels ("Doctor:", "Patient:", "Dr. Smith:", etc.) become labelled turns.
     - Otherwise, split by paragraphs and alternate between patient/clinician guesses.
     """
     speaker_pattern = re.compile(
-        r"^(?P<speaker>doctor|dr|clinician|physician|patient|pt)\s*[:\-–]\s*",
+        r"^(?P<speaker>(?:dr\.?|doctor|clinician|physician|patient|pt)(?:\s+[a-z]+|\s*\([^)]+\))?)\s*[:\-–]\s*",
         re.IGNORECASE | re.MULTILINE,
     )
 
@@ -105,7 +111,11 @@ def segment_into_turns(text: str) -> list[dict]:
             start = match.end()
             end = labelled[idx + 1].start() if idx + 1 < len(labelled) else len(text)
             speaker_raw = match.group("speaker").lower()
-            speaker = "clinician" if speaker_raw in ("doctor", "dr", "clinician", "physician") else "patient"
+            speaker = (
+                "clinician"
+                if any(w in speaker_raw for w in ("doctor", "dr", "clinician", "physician"))
+                else "patient"
+            )
             chunk = text[start:end].strip()
             if chunk:
                 turns.append({

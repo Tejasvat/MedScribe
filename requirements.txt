@@ -1,0 +1,16 @@
+# Core dependencies for MediScribe NER service
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.7.0
+python-multipart>=0.0.9
+pdfplumber>=0.11.0
+httpx>=0.27.0
+pytest>=8.0.0
+# Dataset export utility used by test.py
+datasets>=3.0.0
+soundfile>=0.12.0
+# Audio Consultation & WhisperX transcription dependencies
+whisperx>=3.1.0
+pyannote.audio>=3.1.0
+python-dotenv>=1.0.0
+

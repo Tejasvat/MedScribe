@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from mediscribe.main import app
 
 client = TestClient(app)
+EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
 
 
 def test_root_serves_frontend():
@@ -33,6 +34,13 @@ def test_presets_endpoint():
     preset_ids = [p["id"] for p in presets]
     assert "cardiology" in preset_ids
     assert "code_mixed" in preset_ids
+
+
+def test_sample_pdf_endpoint():
+    response = client.get("/v1/sample-pdf")
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "application/pdf"
+    assert len(response.content) > 0
 
 
 def test_analyze_exposes_provenance_and_safety():
@@ -81,10 +89,58 @@ def test_analyze_text_endpoint():
     assert len(body["turns"]) == 2
 
 
+def test_analyze_file_endpoint_pdf():
+    sample_pdf_path = EXAMPLES_DIR / "sample_clinical_record.pdf"
+    if sample_pdf_path.exists():
+        with open(sample_pdf_path, "rb") as f:
+            response = client.post(
+                "/v1/analyze-file",
+                files={"file": ("sample.pdf", f.read(), "application/pdf")},
+            )
+        assert response.status_code == 200
+        body = response.json()
+        assert len(body["entities"]) > 0
+        assert "_source" in body
+        assert body["_source"]["filename"] == "sample.pdf"
+
+
+def test_analyze_file_endpoint_txt():
+    sample_txt = b"Doctor: Reviewing blood pressure.\nPatient: Taking lisinopril 10 mg."
+    response = client.post(
+        "/v1/analyze-file",
+        files={"file": ("record.txt", sample_txt, "text/plain")},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["entities"]) > 0
+
+
+def test_report_generation():
+    analyze_res = client.post(
+        "/v1/analyze-text",
+        data={"text": "Doctor: Take paracetamol 500 mg for headache.\nPatient: Understood."},
+    )
+    assert analyze_res.status_code == 200
+    report_res = client.post("/v1/report", json=analyze_res.json())
+    assert report_res.status_code == 200
+    assert "MediScribe AI" in report_res.text
+    assert "Extracted Clinical Entities" in report_res.text
+
+
+def test_validation_empty_text():
+    response = client.post("/v1/analyze-text", data={"text": "   "})
+    assert response.status_code == 400
+
+
 if __name__ == "__main__":
     test_root_serves_frontend()
     test_health_endpoint()
     test_presets_endpoint()
+    test_sample_pdf_endpoint()
     test_analyze_exposes_provenance_and_safety()
     test_analyze_text_endpoint()
-    print("All 5 tests passed successfully!")
+    test_analyze_file_endpoint_pdf()
+    test_analyze_file_endpoint_txt()
+    test_report_generation()
+    test_validation_empty_text()
+    print("All 10 tests passed successfully!")

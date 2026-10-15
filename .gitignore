@@ -21,5 +21,15 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# Generated files
+# Generated files and build artifacts
 *.log
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Testing & Type checking
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/

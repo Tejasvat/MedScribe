@@ -1,0 +1,166 @@
+================================================================================
+  MEDISCRIBE AI — PROJECT REPORT
+  Date: October 2026
+================================================================================
+
+WHAT IS THIS PROJECT?
+----------------------
+MediScribe AI is a clinical documentation assistant. It takes a doctor-patient
+conversation (typed, pasted, uploaded as PDF, or recorded as audio) and
+automatically extracts medical information from it — medications, symptoms,
+diagnoses, investigations — then generates a structured clinical report.
+
+Think of it as an AI scribe that listens to or reads a consultation and
+produces a clean medical summary without the doctor having to type it manually.
+
+
+TECH STACK
+-----------
+  Backend  : Python + FastAPI (REST API server)
+  Frontend : Vanilla HTML + CSS + JavaScript (single page app)
+  ML / NLP : Rule-based NER with pattern matching (no heavy model needed for
+             text analysis), WhisperX for audio transcription
+  FHIR     : Standard healthcare data format for structured output
+
+
+HOW THE APP IS STRUCTURED
+--------------------------
+mediscribe/
+  main.py          — FastAPI server, all API routes
+  extraction.py    — Medical Named Entity Recognition (NER) engine
+  clinical.py      — Medication normalization, safety alerts, SOAP note drafting
+  pdf_parser.py    — Parses uploaded PDFs and TXT files into conversation turns
+  audio_service.py — Audio upload, WhisperX transcription, speaker diarization
+  report.py        — Generates downloadable HTML clinical report
+  fhir.py          — Builds FHIR R4 bundle (standard healthcare data format)
+  schemas.py       — Pydantic data models for all API inputs/outputs
+
+frontend/
+  index.html       — The entire single-page UI
+  app.js           — All frontend logic (routing, API calls, rendering)
+
+
+WHAT THE APP CAN DO
+--------------------
+1. TEXT INPUT
+   Paste or type a doctor-patient dialogue directly into the app.
+   Comes with 4 pre-loaded clinical scenario presets to try immediately.
+
+2. PDF / TXT UPLOAD
+   Upload a clinical record or transcript as a PDF or text file.
+   The app extracts the text, detects conversation turns, and runs analysis.
+
+3. AUDIO UPLOAD  ← newly added feature
+   Upload an MP3 or WAV recording of a consultation (up to 50 MB).
+   WhisperX (small model, CPU, INT8 quantization) transcribes the audio.
+   If a Hugging Face token is provided, pyannote identifies who is speaking
+   (Doctor vs Patient). The user can then review and correct the transcript
+   before running the full analysis.
+
+For all three input types, the app then produces:
+
+  - NER VIEW        : Every medical entity highlighted (drugs, symptoms,
+                      diagnoses, lab tests) with color coding by category
+  - MEDICATIONS     : Normalized drug list with dose, frequency, status
+                      (prescribed / discontinued / allergic)
+  - SAFETY ALERTS   : Drug-drug interaction warnings (e.g. Warfarin + Aspirin)
+  - SOAP NOTE       : Auto-drafted clinical note in standard SOAP format
+                      (Subjective, Objective, Assessment, Plan)
+  - FHIR BUNDLE     : Machine-readable JSON in the international FHIR R4
+                      healthcare standard, ready for EMR/EHR integration
+  - HTML REPORT     : Downloadable full clinical report
+
+
+THE NER (NAMED ENTITY RECOGNITION) ENGINE
+-------------------------------------------
+The extraction engine does NOT rely on a large language model.
+It uses a fast rule-based approach:
+  - Pattern matching with regex and keyword dictionaries
+  - Medical terminology databases for drugs, symptoms, body parts
+  - Sentence-level context to determine if something was prescribed,
+    stopped, or mentioned as an allergy
+  - Speaker role awareness (doctor statements vs patient statements
+    are handled differently for better accuracy)
+
+This makes it fast, predictable, and auditable — important for clinical use.
+
+
+FHIR OUTPUT
+------------
+The app generates a valid FHIR R4 Bundle containing:
+  - Patient resource
+  - Encounter resource
+  - MedicationStatement resources (one per drug found)
+  - AllergyIntolerance resources
+  - Observation resources (lab tests / investigations ordered)
+  - Condition resources (diagnoses / symptoms)
+
+
+AUDIO PIPELINE (detailed)
+--------------------------
+  1. User uploads MP3 or WAV (validated: format + size < 50 MB)
+  2. File saved to a temp directory, background job created
+  3. WhisperX loads audio using FFmpeg subprocess
+  4. Voice Activity Detection (pyannote VAD) segments the audio
+  5. Whisper small model transcribes each segment (INT8, CPU)
+  6. Alignment model aligns words to timestamps
+  7. If HF_TOKEN is set: pyannote diarization assigns SPEAKER_00/01 labels
+  8. Segments returned to frontend for human review
+  9. User assigns roles (Doctor / Patient) per speaker
+  10. User submits reviewed transcript → same NER + SOAP + FHIR pipeline runs
+
+
+BUGS FIXED DURING DEVELOPMENT
+-------------------------------
+  1. FFmpeg not on Windows PATH
+     WhisperX calls ffmpeg as a subprocess. The binary existed at a custom
+     download location but wasn't on PATH. Fixed by auto-detecting the binary
+     path from an FFMPEG_PATH env variable and a list of known Windows locations,
+     then patching os.environ["PATH"] at startup.
+
+  2. Wrong Python interpreter
+     Windows has multiple Python installs. The system "uvicorn" command was
+     picking up the Windows Store Python (which lacks whisperx) instead of
+     the Programs Python (which has it). Fixed by always running the server
+     with the explicit Python path: python.exe -m uvicorn ...
+
+  3. Generic error messages hiding real failures
+     All audio exceptions were caught and replaced with "WhisperX is not
+     installed" regardless of the actual error. Fixed to surface the real
+     exception type, message, and full traceback to server logs.
+
+  4. .env not loaded at startup
+     FFMPEG_PATH and HF_TOKEN were set in .env but never read by the server.
+     Fixed by adding python-dotenv loading at the top of main.py.
+
+
+HOW TO START THE SERVER
+------------------------
+  cd C:\Users\tejas\Documents\NER
+  .\start.ps1
+
+  Then open: http://127.0.0.1:8000
+
+
+ENVIRONMENT VARIABLES (.env file)
+-----------------------------------
+  FFMPEG_PATH   = path to ffmpeg.exe (required on Windows if not on PATH)
+  HF_TOKEN      = Hugging Face token (optional, enables speaker diarization)
+  WHISPER_MODEL = small (or tiny/base/medium/large-v2)
+  WHISPER_DEVICE= cpu
+  WHISPER_COMPUTE_TYPE = int8
+  MAX_AUDIO_SIZE_MB    = 50
+
+
+KNOWN LIMITATIONS
+------------------
+  - Audio transcription on CPU is slow (~3-5 min for a 10-min recording).
+    A GPU would reduce this to under 30 seconds.
+  - Speaker diarization requires accepting gated model conditions on
+    Hugging Face and setting HF_TOKEN. Without it, speakers are labeled
+    SPEAKER_00, SPEAKER_01 and roles must be assigned manually.
+  - NER accuracy depends on clean text. Heavy code-switching or heavy
+    background noise may reduce extraction quality.
+  - No persistent database — all results are in-memory per server session.
+
+================================================================================

@@ -1,16 +1,33 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
+import threading
 import uuid
 from pathlib import Path
+
+# Load .env before any other local imports so environment variables
+# (FFMPEG_PATH, HF_TOKEN, WHISPER_MODEL, etc.) are available immediately.
+try:
+    from dotenv import load_dotenv  # type: ignore
+    load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent / ".env", override=False)
+except ImportError:
+    pass  # python-dotenv not installed — rely on system environment
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .clinical import draft_soap, normalize_medications, safety_alerts
-from .extraction import get_extractor
+from .clinical import (
+    draft_soap,
+    extract_allergies,
+    extract_investigations,
+    normalize_medications,
+    safety_alerts,
+)
+from .extraction import extract_identities, get_extractor
 from .fhir import build_bundle
 from .pdf_parser import (
     ParsedDocument,
@@ -18,8 +35,79 @@ from .pdf_parser import (
     extract_text_from_txt,
     segment_into_turns,
 )
+from .audio_service import (
+    DEFAULT_MAX_AUDIO_BYTES,
+    check_audio_dependencies,
+    job_manager,
+    process_audio_file,
+    validate_audio_file,
+)
 from .report import generate_html_report
-from .schemas import AnalyzeRequest, AnalyzeResponse, TranscriptTurn
+from .schemas import (
+    AnalyzeRequest,
+    AnalyzeResponse,
+    AudioAnalyzeRequest,
+    AudioStatusResponse,
+    AudioTranscriptSegment,
+    Speaker,
+    TranscriptTurn,
+)
+
+
+def run_pipeline(
+    turns: list[TranscriptTurn],
+    enc_id: str,
+    pat_id: str | None = None,
+    patient_name: str = "",
+    physician_name: str = "",
+) -> AnalyzeResponse:
+    """Execute the core clinical NER, medication normalization, safety, SOAP, and FHIR pipeline."""
+    extracted_patient, extracted_age, extracted_physician = extract_identities(turns)
+    pat_name = patient_name.strip() or extracted_patient
+    phys_name = physician_name.strip() or extracted_physician
+
+    entities = extractor.extract(turns)
+    medications = normalize_medications(entities, turns)
+    allergies = extract_allergies(turns, entities)
+    investigations = extract_investigations(turns, entities)
+    alerts = safety_alerts(medications, allergies)
+    soap = draft_soap(
+        turns,
+        entities,
+        medications=medications,
+        allergies=allergies,
+        investigations=investigations,
+        patient_name=pat_name,
+        patient_age=extracted_age,
+        physician_name=phys_name,
+    )
+    bundle = build_bundle(
+        enc_id,
+        pat_id,
+        entities,
+        medications,
+        allergies=allergies,
+        investigations=investigations,
+        patient_name=pat_name,
+        physician_name=phys_name,
+    )
+
+    return AnalyzeResponse(
+        encounter_id=enc_id,
+        patient_id=pat_id,
+        patient_name=pat_name,
+        patient_age=extracted_age,
+        physician_name=phys_name,
+        turns=turns,
+        entities=entities,
+        medications=medications,
+        investigations=investigations,
+        allergies=allergies,
+        safety_alerts=alerts,
+        soap_note=soap,
+        fhir_bundle=bundle,
+    )
+
 
 app = FastAPI(
     title="MediScribe AI",
@@ -57,6 +145,13 @@ def root() -> HTMLResponse:
         content="<h1>MediScribe AI API</h1>"
         '<p>Frontend not found. Visit <a href="/docs">/docs</a> for API docs.</p>'
     )
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    """Return inline SVG favicon."""
+    svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><rect width="36" height="36" rx="10" fill="#18191c"/><path d="M18 8v20M8 18h20" stroke="#d2f84b" stroke-width="3.5" stroke-linecap="round"/><circle cx="18" cy="18" r="6" stroke="#b6b0ee" stroke-width="2" fill="none"/></svg>'
+    return HTMLResponse(content=svg, media_type="image/svg+xml")
 
 
 @app.get("/health")
@@ -158,18 +253,49 @@ def get_presets() -> JSONResponse:
 @app.post("/v1/analyze", response_model=AnalyzeResponse)
 def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     """Original JSON-based analysis endpoint."""
+    patient_name, patient_age, physician_name = extract_identities(request.turns)
+    pat_name = request.patient_name or patient_name
+    phys_name = request.physician_name or physician_name
+
     entities = extractor.extract(request.turns)
-    medications = normalize_medications(entities)
+    medications = normalize_medications(entities, request.turns)
+    allergies = extract_allergies(request.turns, entities)
+    investigations = extract_investigations(request.turns, entities)
+    alerts = safety_alerts(medications, allergies)
+    soap = draft_soap(
+        request.turns,
+        entities,
+        medications=medications,
+        allergies=allergies,
+        investigations=investigations,
+        patient_name=pat_name,
+        patient_age=patient_age,
+        physician_name=phys_name,
+    )
+    bundle = build_bundle(
+        request.encounter_id,
+        request.patient_id,
+        entities,
+        medications,
+        allergies=allergies,
+        investigations=investigations,
+        patient_name=pat_name,
+        physician_name=phys_name,
+    )
     return AnalyzeResponse(
         encounter_id=request.encounter_id,
+        patient_id=request.patient_id,
+        patient_name=pat_name,
+        patient_age=patient_age,
+        physician_name=phys_name,
         turns=request.turns,
         entities=entities,
         medications=medications,
-        safety_alerts=safety_alerts(medications),
-        soap_note=draft_soap(request.turns, entities),
-        fhir_bundle=build_bundle(
-            request.encounter_id, request.patient_id, entities, medications
-        ),
+        investigations=investigations,
+        allergies=allergies,
+        safety_alerts=alerts,
+        soap_note=soap,
+        fhir_bundle=bundle,
     )
 
 
@@ -178,6 +304,8 @@ def analyze_text(
     text: str = Form(...),
     encounter_id: str = Form(default=""),
     patient_id: str = Form(default=""),
+    patient_name: str = Form(default=""),
+    physician_name: str = Form(default=""),
 ) -> JSONResponse:
     """Analyze raw text input (pasted or typed)."""
     if not text.strip():
@@ -189,17 +317,12 @@ def analyze_text(
     turns_data = segment_into_turns(text.strip())
     turns = [TranscriptTurn(**t) for t in turns_data]
 
-    entities = extractor.extract(turns)
-    medications = normalize_medications(entities)
-
-    response = AnalyzeResponse(
-        encounter_id=enc_id,
+    response = run_pipeline(
         turns=turns,
-        entities=entities,
-        medications=medications,
-        safety_alerts=safety_alerts(medications),
-        soap_note=draft_soap(turns, entities),
-        fhir_bundle=build_bundle(enc_id, pat_id, entities, medications),
+        enc_id=enc_id,
+        pat_id=pat_id,
+        patient_name=patient_name,
+        physician_name=physician_name,
     )
 
     return JSONResponse(content=json.loads(response.model_dump_json()))
@@ -210,6 +333,8 @@ async def analyze_file(
     file: UploadFile = File(...),
     encounter_id: str = Form(default=""),
     patient_id: str = Form(default=""),
+    patient_name: str = Form(default=""),
+    physician_name: str = Form(default=""),
 ) -> JSONResponse:
     """Analyze uploaded PDF or TXT file."""
     if not file.filename:
@@ -239,17 +364,12 @@ async def analyze_file(
     turns_data = segment_into_turns(parsed.raw_text)
     turns = [TranscriptTurn(**t) for t in turns_data]
 
-    entities = extractor.extract(turns)
-    medications = normalize_medications(entities)
-
-    response = AnalyzeResponse(
-        encounter_id=enc_id,
+    response = run_pipeline(
         turns=turns,
-        entities=entities,
-        medications=medications,
-        safety_alerts=safety_alerts(medications),
-        soap_note=draft_soap(turns, entities),
-        fhir_bundle=build_bundle(enc_id, pat_id, entities, medications),
+        enc_id=enc_id,
+        pat_id=pat_id,
+        patient_name=patient_name,
+        physician_name=physician_name,
     )
 
     result = json.loads(response.model_dump_json())
@@ -268,3 +388,142 @@ def generate_report(data: dict) -> HTMLResponse:
     """Generate a downloadable HTML report from analysis results."""
     report_html = generate_html_report(data)
     return HTMLResponse(content=report_html)
+
+
+# =========================================================================
+# 🎙️ AUDIO CONSULTATION ENDPOINTS (WhisperX & Speaker Diarization)
+# =========================================================================
+
+@app.get("/v1/audio/dependencies")
+def get_audio_dependencies() -> dict[str, Any]:
+    """Inspect environment for audio dependencies, models, and HF token."""
+    return check_audio_dependencies()
+
+
+@app.post("/v1/audio/upload")
+async def upload_audio(
+    file: UploadFile = File(...),
+) -> JSONResponse:
+    """Upload and validate an MP3 or WAV audio consultation file for asynchronous processing."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No audio file uploaded.")
+
+    file_bytes = await file.read()
+    val = validate_audio_file(file.filename, file_bytes, max_bytes=DEFAULT_MAX_AUDIO_BYTES)
+    if not val.is_valid:
+        raise HTTPException(status_code=400, detail=val.error_message)
+
+    # Save to temporary secure file
+    suffix = val.file_extension
+    temp_dir = Path(tempfile.gettempdir()) / "mediscribe_audio"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    temp_audio_path = temp_dir / f"{uuid.uuid4().hex}{suffix}"
+    temp_audio_path.write_bytes(file_bytes)
+
+    # Create background job
+    job = job_manager.create_job(filename=file.filename)
+
+    # Launch background thread for transcription and diarization
+    def run_worker() -> None:
+        try:
+            process_audio_file(str(temp_audio_path), job_id=job.job_id)
+        finally:
+            # Clean up temporary audio file after processing completes
+            try:
+                if temp_audio_path.exists():
+                    temp_audio_path.unlink()
+            except OSError:
+                pass
+
+    worker_thread = threading.Thread(target=run_worker, daemon=True)
+    worker_thread.start()
+
+    return JSONResponse(
+        status_code=202,
+        content={
+            "job_id": job.job_id,
+            "filename": file.filename,
+            "status": "queued",
+            "progress": 5,
+            "message": "Audio file accepted for background processing.",
+        },
+    )
+
+
+@app.get("/v1/audio/status/{job_id}", response_model=AudioStatusResponse)
+def get_audio_status(job_id: str) -> JSONResponse:
+    """Poll processing status, progress, and diarization output of an audio consultation."""
+    job = job_manager.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Audio job not found.")
+
+    return JSONResponse(
+        content={
+            "job_id": job.job_id,
+            "filename": job.filename,
+            "status": job.status,
+            "progress": job.progress,
+            "segments": job.segments,
+            "speakers": job.speakers,
+            "error_message": job.error_message,
+            "diarization_warning": job.diarization_warning,
+            "duration_sec": job.duration_sec,
+        }
+    )
+
+
+@app.post("/v1/audio/analyze")
+def analyze_reviewed_audio_transcript(
+    payload: AudioAnalyzeRequest,
+) -> JSONResponse:
+    """Analyze the user-reviewed and edited audio transcript segments.
+
+    Only the reviewed transcript and assigned roles (Doctor, Patient) are passed
+    into the clinical NER, medication extraction, safety alert, SOAP, and FHIR pipeline.
+    """
+    if not payload.segments:
+        raise HTTPException(status_code=400, detail="No transcript segments provided.")
+
+    turns: list[TranscriptTurn] = []
+    for idx, seg in enumerate(payload.segments):
+        # Determine speaker role: explicitly given on segment, or mapped from speaker_id
+        role = seg.role.lower().strip()
+        if role in ("unknown", ""):
+            role = payload.speaker_roles.get(seg.speaker_id, "unknown").lower().strip()
+
+        if role in ("doctor", "clinician", "physician"):
+            turn_speaker = Speaker.CLINICIAN
+        elif role in ("patient", "pt"):
+            turn_speaker = Speaker.PATIENT
+        else:
+            turn_speaker = Speaker.UNKNOWN
+
+        start_ms = int(seg.start_sec * 1000) if seg.start_sec is not None else None
+        end_ms = int(seg.end_sec * 1000) if seg.end_sec is not None else None
+
+        turns.append(
+            TranscriptTurn(
+                turn_id=seg.segment_id or f"t{idx + 1}",
+                speaker=turn_speaker,
+                text=seg.text.strip(),
+                start_ms=start_ms,
+                end_ms=end_ms,
+            )
+        )
+
+    response = run_pipeline(
+        turns=turns,
+        enc_id=payload.encounter_id,
+        pat_id=payload.patient_id,
+        patient_name=payload.patient_name or "",
+        physician_name=payload.physician_name or "",
+    )
+
+    result = json.loads(response.model_dump_json())
+    result["_source"] = {
+        "type": "audio",
+        "segment_count": len(payload.segments),
+        "speakers": list(payload.speaker_roles.keys()),
+    }
+    return JSONResponse(content=result)
+
