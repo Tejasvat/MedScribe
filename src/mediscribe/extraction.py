@@ -313,14 +313,65 @@ class RuleBasedExtractor(Extractor):
 
     @staticmethod
     def _deduplicate_and_filter(entities: list[ClinicalEntity]) -> list[ClinicalEntity]:
-        seen: set[tuple[str, str, str]] = set()
-        deduped: list[ClinicalEntity] = []
+        """Deduplicate entities and resolve overlapping character spans per turn.
+
+        If multiple entities cover the exact same or overlapping text (e.g. 'hypertension'
+        matched as both diagnosis and adverse_event), keep the one with higher confidence
+        (or longer span) so that frontend span insertion never splits an HTML tag.
+        """
+        if not entities:
+            return []
+
+        # Group by turn_id
+        by_turn: dict[str, list[ClinicalEntity]] = {}
         for e in entities:
-            key = (e.provenance.turn_id, e.type.value, e.text.lower())
-            if key not in seen:
-                seen.add(key)
-                deduped.append(e)
-        return deduped
+            by_turn.setdefault(e.provenance.turn_id, []).append(e)
+
+        type_priority = {
+            EntityType.DRUG: 1,
+            EntityType.DOSAGE: 2,
+            EntityType.DIAGNOSIS: 3,
+            EntityType.SYMPTOM: 4,
+            EntityType.TEST: 5,
+            EntityType.ADVERSE_EVENT: 6,
+            EntityType.FREQUENCY: 7,
+            EntityType.ROUTE: 8,
+            EntityType.DURATION: 9,
+        }
+
+        resolved: list[ClinicalEntity] = []
+        for turn_id, turn_ents in by_turn.items():
+            # Sort by start_char ascending, then span length descending, then confidence descending
+            sorted_ents = sorted(
+                turn_ents,
+                key=lambda x: (
+                    x.provenance.start_char,
+                    -(x.provenance.end_char - x.provenance.start_char),
+                    -x.confidence,
+                    type_priority.get(x.type, 99),
+                ),
+            )
+
+            non_overlapping: list[ClinicalEntity] = []
+            for candidate in sorted_ents:
+                c_start = candidate.provenance.start_char
+                c_end = candidate.provenance.end_char
+
+                # Check if candidate overlaps with any already accepted entity in this turn
+                overlap = False
+                for accepted in non_overlapping:
+                    a_start = accepted.provenance.start_char
+                    a_end = accepted.provenance.end_char
+                    if max(c_start, a_start) < min(c_end, a_end):
+                        overlap = True
+                        break
+
+                if not overlap:
+                    non_overlapping.append(candidate)
+
+            resolved.extend(non_overlapping)
+
+        return resolved
 
 
 class TransformersExtractor(Extractor):

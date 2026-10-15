@@ -986,18 +986,36 @@
     function highlightEntitiesInText(text, turnEntities) {
         if (!turnEntities || turnEntities.length === 0) return escapeHtml(text);
 
-        const sorted = [...turnEntities].sort((a, b) => b.provenance.start_char - a.provenance.start_char);
-        let output = text;
+        // Sort ascending by start_char to filter out any overlapping entity spans
+        const validEntities = turnEntities
+            .filter(e => e.provenance && typeof e.provenance.start_char === 'number' && typeof e.provenance.end_char === 'number')
+            .sort((a, b) => a.provenance.start_char - b.provenance.start_char);
 
-        sorted.forEach(ent => {
+        const nonOverlapping = [];
+        let lastEnd = -1;
+        for (const ent of validEntities) {
             const start = ent.provenance.start_char;
             const end = ent.provenance.end_char;
-            const slice = output.slice(start, end);
+            if (start >= lastEnd && end > start && end <= text.length) {
+                nonOverlapping.push(ent);
+                lastEnd = end;
+            }
+        }
+
+        // Now sort descending to safely splice HTML buttons from right to left
+        nonOverlapping.sort((a, b) => b.provenance.start_char - a.provenance.start_char);
+        let output = text;
+
+        nonOverlapping.forEach(ent => {
+            const start = ent.provenance.start_char;
+            const end = ent.provenance.end_char;
+            const slice = text.slice(start, end);
 
             let colorClasses = 'bg-primary-container text-on-primary-fixed';
             if (ent.type === 'symptom') colorClasses = 'bg-amber-100 hover:bg-amber-200 text-amber-950';
             else if (ent.type === 'drug') colorClasses = 'bg-secondary-fixed hover:bg-secondary-fixed-dim text-on-secondary-fixed';
             else if (ent.type === 'test') colorClasses = 'bg-cyan-100 hover:bg-cyan-200 text-cyan-950';
+            else if (ent.type === 'dosage') colorClasses = 'bg-lime-200 hover:bg-lime-300 text-lime-950';
 
             const confPct = `${((ent.confidence || 0.85) * 100).toFixed(0)}%`;
             const buttonHtml = `<button class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${colorClasses} text-[13px] font-semibold mx-1 transition-all cursor-pointer shadow-sm hover:scale-105" onclick="inspectEntitySpan('${escapeHtml(ent.entity_id)}')"><span>${escapeHtml(slice)}</span><span class="text-[11px] opacity-75">${confPct}</span></button>`;
