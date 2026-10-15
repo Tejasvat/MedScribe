@@ -126,10 +126,22 @@ app.add_middleware(
 
 extractor = get_extractor()
 
-# Serve the frontend static files
+# Robust frontend and examples directory resolution across dev, pip install, and container environments
+def _resolve_dir(dirname: str) -> Path:
+    candidates = [
+        Path(__file__).resolve().parent.parent.parent / dirname,  # git repo root: src/mediscribe/../../dirname
+        Path.cwd() / dirname,                                     # current working directory
+        Path("/app") / dirname,                                   # standard docker container path
+        Path(__file__).resolve().parent / dirname,                # packaged alongside mediscribe module
+    ]
+    for c in candidates:
+        if c.is_dir():
+            return c
+    return candidates[0]
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-FRONTEND_DIR = BASE_DIR / "frontend"
-EXAMPLES_DIR = BASE_DIR / "examples"
+FRONTEND_DIR = _resolve_dir("frontend")
+EXAMPLES_DIR = _resolve_dir("examples")
 
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
@@ -139,11 +151,16 @@ if FRONTEND_DIR.exists():
 def root() -> HTMLResponse:
     """Serve the MediScribe AI frontend."""
     index_file = FRONTEND_DIR / "index.html"
-    if index_file.exists():
+    if index_file.is_file():
         return HTMLResponse(content=index_file.read_text(encoding="utf-8"))
+    
+    # Fallback search if index.html is in any candidate directory
+    for candidate in [Path.cwd() / "frontend" / "index.html", Path("/app/frontend/index.html")]:
+        if candidate.is_file():
+            return HTMLResponse(content=candidate.read_text(encoding="utf-8"))
+
     return HTMLResponse(
-        content="<h1>MediScribe AI API</h1>"
-        '<p>Frontend not found. Visit <a href="/docs">/docs</a> for API docs.</p>'
+        content=f"<h1>MediScribe AI API</h1><p>Frontend not found at {FRONTEND_DIR}. Visit <a href='/docs'>/docs</a> for API docs.</p>"
     )
 
 
@@ -526,4 +543,11 @@ def analyze_reviewed_audio_transcript(
         "speakers": list(payload.speaker_roles.keys()),
     }
     return JSONResponse(content=result)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("mediscribe.main:app", host="0.0.0.0", port=port)
+
 
