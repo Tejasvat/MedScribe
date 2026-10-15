@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediScribe AI — Intelligent Clinical Documentation</title>
+    <meta name="description" content="MediScribe AI transforms clinical consultations into structured, safety-checked documentation using Medical Named Entity Recognition and Large Language Models.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Serif+Display:ital@1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <!-- =================== NAVIGATION =================== -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <a href="#/" class="nav-logo" data-link>
+                <div class="logo-icon">
+                    <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="36" height="36" rx="10" fill="url(#logoGrad2)"/>
+                        <path d="M18 10v16M10 18h16" stroke="#5ee7b7" stroke-width="2.5" stroke-linecap="round"/>
+                        <circle cx="18" cy="18" r="5" fill="none" stroke="#5ee7b7" stroke-width="1.5" opacity="0.5"/>
+                        <defs>
+                            <linearGradient id="logoGrad2" x1="0" y1="0" x2="36" y2="36">
+                                <stop stop-color="#0f2d40"/>
+                                <stop offset="1" stop-color="#1a4a5e"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <span class="logo-text">MediScribe<span class="logo-ai">AI</span></span>
+            </a>
+            <div class="nav-links" id="nav-links">
+                <a href="#/" class="nav-link active" data-link data-route-group="home">Home</a>
+                <a href="#/analyze" class="nav-link" data-link data-route-group="analyze">Analyze</a>
+                <a href="#/results" class="nav-link" data-link data-route-group="results">Results</a>
+            </div>
+            <a href="#/analyze" class="nav-cta" data-link>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>
+                <span>Start Analysis</span>
+            </a>
+            <button class="nav-mobile-toggle" id="nav-mobile-toggle" aria-label="Toggle menu">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- =================== PAGE CONTAINER =================== -->
+    <main id="app-root">
+
+        <!-- =================== PAGE: HOME =================== -->
+        <div class="page" id="page-home">
+            <section class="hero">
+                <div class="hero-bg-grid"></div>
+                <div class="hero-glow hero-glow-1"></div>
+                <div class="hero-glow hero-glow-2"></div>
+                <div class="hero-container">
+                    <div class="hero-content">
+                        <div class="hero-badge">
+                            <span class="badge-pulse"></span>
+                            Clinical AI Platform
+                        </div>
+                        <h1 class="hero-title">
+                            Clinical documentation,<br>
+                            <span class="hero-title-accent">reimagined.</span>
+                        </h1>
+                        <p class="hero-subtitle">
+                            From consultation to structured report in seconds. MediScribe AI extracts clinical entities, checks drug safety, and generates FHIR-ready documentation — all on-premise.
+                        </p>
+                        <div class="hero-stats-row">
+                            <div class="hero-stat">
+                                <span class="hero-stat-num">6</span>
+                                <span class="hero-stat-label">Entity Types</span>
+                            </div>
+                            <div class="hero-stat-divider"></div>
+                            <div class="hero-stat">
+                                <span class="hero-stat-num">236K</span>
+                                <span class="hero-stat-label">DDI Checks</span>
+                            </div>
+                            <div class="hero-stat-divider"></div>
+                            <div class="hero-stat">
+                                <span class="hero-stat-num">2</span>
+                                <span class="hero-stat-label">Languages (EN–TA)</span>
+                            </div>
+                        </div>
+                        <div class="hero-actions">
+                            <a href="#/analyze" class="btn btn-mint btn-lg" data-link>
+                                <svg viewBox="0 0 20 20" fill="currentColor" class="btn-icon"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>
+                                Start Analysis
+                            </a>
+                            <a href="#/results" class="btn btn-outline-light btn-lg" data-link>
+                                View Sample Results
+                                <svg viewBox="0 0 20 20" fill="currentColor" class="btn-icon-right"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="hero-visual">
+                        <div class="hero-visual-card hero-card-main">
+                            <div class="hvc-header">
+                                <span class="hvc-dot green"></span>
+                                <span class="hvc-title">NER Extraction</span>
+                                <span class="hvc-badge">Live</span>
+                            </div>
+                            <div class="hvc-entities">
+                                <span class="hvc-pill symptom">SYMPTOM: fever</span>
+                                <span class="hvc-pill drug">DRUG: amoxicillin</span>
+                                <span class="hvc-pill dosage">DOSAGE: 500 mg</span>
+                                <span class="hvc-pill frequency">FREQ: 3× daily</span>
+                                <span class="hvc-pill test">TEST: ECG</span>
+                                <span class="hvc-pill adverse">ADV: nausea</span>
+                            </div>
+                        </div>
+                        <div class="hero-visual-card hero-card-alert">
+                            <div class="hvc-header">
+                                <span class="hvc-dot red"></span>
+                                <span class="hvc-title">Safety Alert</span>
+                            </div>
+                            <div class="hvc-alert-body">
+                                <span class="hvc-severity">HIGH RISK</span>
+                                <span class="hvc-alert-text">warfarin + ibuprofen → bleeding risk</span>
+                            </div>
+                        </div>
+                        <div class="hero-visual-card hero-card-conf">
+                            <div class="hvc-header">
+                                <span class="hvc-dot teal"></span>
+                                <span class="hvc-title">Confidence</span>
+                            </div>
+                            <div class="hvc-conf-bars">
+                                <div class="hvc-conf-row"><span>amoxicillin</span><div class="hvc-bar"><div class="hvc-bar-fill" style="width:96%"></div></div><span>96%</span></div>
+                                <div class="hvc-conf-row"><span>fever</span><div class="hvc-bar"><div class="hvc-bar-fill" style="width:91%"></div></div><span>91%</span></div>
+                                <div class="hvc-conf-row"><span>500 mg</span><div class="hvc-bar"><div class="hvc-bar-fill" style="width:88%"></div></div><span>88%</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Capabilities Strip -->
+            <section class="capabilities-section">
+                <div class="section-container">
+                    <div class="section-head-row">
+                        <div>
+                            <span class="section-eyebrow">Why MediScribe</span>
+                            <h2 class="section-heading">Built for the realities of a busy clinic</h2>
+                        </div>
+                        <p class="section-sub">Five additions on top of an off-the-shelf scribe — the parts that make a pipeline usable, not just impressive.</p>
+                    </div>
+                    <div class="capabilities-grid">
+                        <div class="capability-card">
+                            <div class="cap-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg></div>
+                            <h3>Code-Mixed ASR</h3>
+                            <p>Handles English–Tamil code-switched clinical speech natively.</p>
+                        </div>
+                        <div class="capability-card">
+                            <div class="cap-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+                            <h3>Confidence Scoring</h3>
+                            <p>Every entity carries a score linked back to its source sentence.</p>
+                        </div>
+                        <div class="capability-card">
+                            <div class="cap-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.618 5.984A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div>
+                            <h3>Drug Safety Layer</h3>
+                            <p>Checks 236K drug–drug interactions via DDInter &amp; RxNorm.</p>
+                        </div>
+                        <div class="capability-card">
+                            <div class="cap-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
+                            <h3>FHIR Export</h3>
+                            <p>Structured JSON aligned to FHIR resources, ready for any EHR.</p>
+                        </div>
+                        <div class="capability-card">
+                            <div class="cap-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div>
+                            <h3>Privacy-First</h3>
+                            <p>Fully on-premise. No consultation audio or text leaves the clinic.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Showcase: what the Analysis looks like -->
+            <section class="showcase-section">
+                <div class="section-container">
+                    <div class="section-head-row">
+                        <div>
+                            <span class="section-eyebrow">Inside an analysis</span>
+                            <h2 class="section-heading">One consultation, six structured views</h2>
+                        </div>
+                        <a href="#/analyze" class="btn btn-outline" data-link>Try it now →</a>
+                    </div>
+                    <div class="showcase-grid">
+                        <div class="showcase-card">
+                            <span class="showcase-tag teal">Clickable Transcript</span>
+                            <h4>Entities highlighted in context</h4>
+                            <p>Every symptom, drug, dose and test is marked inline with a confidence score, linked back to the exact sentence it came from.</p>
+                            <div class="showcase-mini-entities">
+                                <span class="mini-pill" style="background:var(--entity-symptom-bg);color:var(--entity-symptom)">fever</span>
+                                <span class="mini-pill" style="background:var(--entity-drug-bg);color:var(--entity-drug)">amoxicillin</span>
+                                <span class="mini-pill" style="background:var(--entity-dosage-bg);color:var(--entity-dosage)">500 mg</span>
+                            </div>
+                        </div>
+                        <div class="showcase-card">
+                            <span class="showcase-tag red">Safety Alerts</span>
+                            <h4>Interactions caught before they're missed</h4>
+                            <p>The extracted drug list is normalized via RxNorm and cross-checked against 236K DDInter interaction pairs — shown as decision support, never an instruction.</p>
+                            <div class="showcase-mini-entities">
+                                <span class="mini-pill" style="background:var(--red-light);color:var(--red)">HIGH RISK</span>
+                                <span class="mini-pill" style="background:var(--bg-surface-alt);color:var(--ink-soft)">warfarin + ibuprofen</span>
+                            </div>
+                        </div>
+                        <div class="showcase-card">
+                            <span class="showcase-tag amber">SOAP + FHIR</span>
+                            <h4>From dialogue to structured record</h4>
+                            <p>A SOAP-style note is synthesized automatically, then exported as a FHIR-ready JSON bundle the clinician reviews and signs off before it touches the EHR.</p>
+                            <div class="showcase-mini-entities">
+                                <span class="mini-pill" style="background:var(--blue-light);color:var(--blue)">Subjective</span>
+                                <span class="mini-pill" style="background:var(--blue-light);color:var(--blue)">Assessment</span>
+                                <span class="mini-pill" style="background:var(--blue-light);color:var(--blue)">Plan</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CTA Banner -->
+            <section class="cta-banner">
+                <div class="section-container">
+                    <div class="cta-inner">
+                        <div class="cta-content">
+                            <h2>Ready to see it in action?</h2>
+                            <p>Paste clinical dialogue, upload a PDF, or try one of our benchmark presets.</p>
+                        </div>
+                        <a href="#/analyze" class="btn btn-mint btn-lg" data-link>Open Analyzer →</a>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- =================== PAGE: ANALYZE (input workspace) =================== -->
+        <div class="page" id="page-analyze">
+            <section class="analyze-page">
+                <div class="analyze-page-container">
+                    <div class="analyze-page-header">
+                        <h1>Clinical NER Analyzer</h1>
+                        <p>Paste clinical dialogue, select a benchmark preset, or upload a clinical document. MediScribe runs NER extraction, drug safety checking, and structured report generation — then hands you off to the Results workspace.</p>
+                    </div>
+
+                    <div class="presets-container">
+                        <span class="presets-label">
+                            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/></svg>
+                            Benchmark Presets
+                        </span>
+                        <div class="presets-list" id="presets-list">
+                            <button class="preset-chip active" data-preset="cardiology">
+                                <span class="preset-icon">🫀</span>
+                                <span class="preset-name">Cardiology &amp; Anticoagulant Risk</span>
+                                <span class="preset-tag danger">High Risk</span>
+                            </button>
+                            <button class="preset-chip" data-preset="code_mixed">
+                                <span class="preset-icon">🗣️</span>
+                                <span class="preset-name">English–Tamil Code-Mixed</span>
+                                <span class="preset-tag novelty">Novelty</span>
+                            </button>
+                            <button class="preset-chip" data-preset="polypharmacy">
+                                <span class="preset-icon">⚠️</span>
+                                <span class="preset-name">Polypharmacy &amp; Renal Interaction</span>
+                                <span class="preset-tag warning">Interaction</span>
+                            </button>
+                            <button class="preset-chip" data-preset="outpatient">
+                                <span class="preset-icon">🩺</span>
+                                <span class="preset-name">General Practice Outpatient</span>
+                                <span class="preset-tag info">Allergy Check</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="analyze-workspace">
+                        <div class="analyze-panel input-panel">
+                            <div class="panel-header">
+                                <h3>
+                                    <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/></svg>
+                                    Input Clinical Source
+                                </h3>
+                                <div class="input-tabs">
+                                    <button class="input-tab active" data-tab="text" id="tab-text">
+                                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/></svg>
+                                        Paste Text
+                                    </button>
+                                    <button class="input-tab" data-tab="file" id="tab-file">
+                                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+                                        Upload PDF / File
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="tab-content active" id="content-text">
+                                <textarea id="clinical-text" class="clinical-textarea" placeholder="Paste clinical dialogue or physician encounter notes here..."></textarea>
+                                <div class="text-footer">
+                                    <span class="char-count" id="char-count">0 characters</span>
+                                    <div class="text-footer-actions">
+                                        <button class="btn-clear-text" id="clear-text">Clear</button>
+                                        <button class="btn-load-example" id="load-example">Reset Preset</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="tab-content" id="content-file">
+                                <div class="upload-zone" id="upload-zone">
+                                    <div class="upload-icon">
+                                        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+                                            <path d="M28 8H12a4 4 0 00-4 4v24a4 4 0 004 4h24a4 4 0 004-4V20L28 8z"/>
+                                            <polyline points="28,8 28,20 40,20"/>
+                                            <line x1="24" y1="26" x2="24" y2="38"/>
+                                            <polyline points="18,32 24,26 30,32"/>
+                                        </svg>
+                                    </div>
+                                    <p class="upload-text">Drag &amp; drop your clinical PDF here, or <span class="upload-browse">browse</span></p>
+                                    <p class="upload-hint">PDF, TXT, CSV, MD — Max 10 MB</p>
+                                    <input type="file" id="file-input" accept=".pdf,.txt,.text,.csv,.md" hidden>
+                                </div>
+
+                                <div class="sample-pdf-box">
+                                    <div class="sample-pdf-desc">
+                                        <strong>Need a clinical file to test?</strong>
+                                        <span>Try our benchmark hospital consultation PDF with cardiology dialogue, medications, and safety alerts.</span>
+                                    </div>
+                                    <div class="sample-pdf-actions">
+                                        <a href="/v1/sample-pdf" download="sample_clinical_record.pdf" class="btn-sample-action btn-sample-download">📥 Download Sample PDF</a>
+                                        <button type="button" class="btn-sample-action btn-sample-test" id="btn-test-sample-pdf">⚡ Analyze Sample PDF</button>
+                                    </div>
+                                </div>
+
+                                <div class="file-info" id="file-info" style="display:none;">
+                                    <div class="file-card">
+                                        <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                        <div class="file-details">
+                                            <span class="file-name" id="file-name"></span>
+                                            <span class="file-size" id="file-size"></span>
+                                        </div>
+                                        <button class="file-remove" id="file-remove" title="Remove file">×</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="optional-fields">
+                                <div class="field-row">
+                                    <div class="field-group">
+                                        <label for="encounter-id">Encounter ID <span class="optional-tag">optional</span></label>
+                                        <input type="text" id="encounter-id" placeholder="Auto-generated if empty">
+                                    </div>
+                                    <div class="field-group">
+                                        <label for="patient-id">Patient ID <span class="optional-tag">optional</span></label>
+                                        <input type="text" id="patient-id" placeholder="For FHIR export">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button class="btn btn-analyze" id="btn-analyze">
+                                <svg viewBox="0 0 20 20" fill="currentColor" class="btn-icon"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>
+                                <span class="btn-text">Run NER Pipeline</span>
+                                <div class="btn-loader" style="display:none;"></div>
+                            </button>
+
+                            <div class="analyze-note">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span>MediScribe assists documentation. It does not diagnose or prescribe — every note is reviewed and signed off by the clinician.</span>
+                            </div>
+                        </div>
+
+                        <!-- Loading state -->
+                        <div class="results-loading" id="results-loading" style="display:none;">
+                            <div class="loading-pipeline">
+                                <div class="loading-step active" data-stage="parse"><div class="step-indicator"></div><span>Parsing document &amp; speaker turns...</span></div>
+                                <div class="loading-step" data-stage="segment"><div class="step-indicator"></div><span>Segmenting turns &amp; dialogue...</span></div>
+                                <div class="loading-step" data-stage="ner"><div class="step-indicator"></div><span>Extracting entities &amp; confidence scores...</span></div>
+                                <div class="loading-step" data-stage="safety"><div class="step-indicator"></div><span>Checking drug safety &amp; RxNorm normalization...</span></div>
+                                <div class="loading-step" data-stage="report"><div class="step-indicator"></div><span>Synthesizing SOAP note &amp; FHIR bundle...</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Error state -->
+                        <div class="results-error-box" id="results-error" style="display:none;">
+                            <div class="error-icon">⚠️</div>
+                            <p class="error-message" id="error-message"></p>
+                            <button class="btn btn-outline btn-small" id="btn-retry">Try Again</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- =================== PAGE: RESULTS (multi-page workspace) =================== -->
+        <div class="page" id="page-results">
+            <div class="results-page-wrap">
+                <div class="results-shell">
+
+                    <!-- Sidebar: persistent across all /results/* routes -->
+                    <aside class="results-sidebar">
+                        <div class="rs-encounter">
+                            <div class="rs-encounter-label">Encounter</div>
+                            <div class="rs-encounter-id" id="rs-encounter-id">—</div>
+                            <div class="rs-encounter-stats">
+                                <div class="rs-mini-stat"><b id="rs-stat-entities">0</b><span>Entities</span></div>
+                                <div class="rs-mini-stat"><b id="rs-stat-turns">0</b><span>Turns</span></div>
+                                <div class="rs-mini-stat"><b id="rs-stat-alerts">0</b><span>Alerts</span></div>
+                            </div>
+                        </div>
+
+                        <nav class="results-nav">
+                            <a href="#/results" class="results-nav-link" data-link data-rnav="overview">
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
+                                Overview
+                            </a>
+                            <a href="#/results/transcript" class="results-nav-link" data-link data-rnav="transcript">
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/></svg>
+                                Transcript
+                            </a>
+                            <a href="#/results/entities" class="results-nav-link" data-link data-rnav="entities">
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3z"/></svg>
+                                Entities
+                                <span class="results-nav-count" id="rnav-count-entities">0</span>
+                            </a>
+                            <a href="#/results/medications" class="results-nav-link" data-link data-rnav="medications">
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5z" clip-rule="evenodd"/></svg>
+                                Medications
+                                <span class="results-nav-count" id="rnav-count-medications">0</span>
+                            </a>
+                            <a href="#/results/safety" class="results-nav-link" data-link data-rnav="safety">
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l6.517 11.59c.75 1.334-.213 2.98-1.742 2.98H3.48c-1.53 0-2.493-1.646-1.743-2.98l6.52-11.59zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                Safety Alerts
+                                <span class="results-nav-count alert-count" id="rnav-count-safety">0</span>
+                            </a>
+                            <a href="#/results/soap" class="results-nav-link" data-link data-rnav="soap">
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 7a1 1 0 000 2h6a1 1 0 100-2H7zm0 3a1 1 0 100 2h4a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
+                                SOAP Note
+                            </a>
+                            <a href="#/results/fhir" class="results-nav-link" data-link data-rnav="fhir">
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                                FHIR Bundle
+                            </a>
+                        </nav>
+
+                        <div class="rs-actions">
+                            <a href="#/analyze" class="rs-action-btn primary" data-link>
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v3H6a1 1 0 100 2h3v3a1 1 0 102 0v-3h3a1 1 0 100-2h-3V6z" clip-rule="evenodd"/></svg>
+                                New Analysis
+                            </a>
+                            <button class="rs-action-btn" id="btn-print-report" title="Print or Save as PDF">
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2z" clip-rule="evenodd"/></svg>
+                                Print / Save PDF
+                            </button>
+                            <button class="rs-action-btn" id="btn-download-report">
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                                Download Report
+                            </button>
+                            <button class="rs-action-btn" id="btn-download-json">
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                                Download JSON
+                            </button>
+                            <button class="rs-action-btn" id="btn-download-fhir">
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5z" clip-rule="evenodd"/></svg>
+                                Download FHIR
+                            </button>
+                        </div>
+                    </aside>
+
+                    <!-- Main content: sub-pages toggled by router -->
+                    <div class="results-main">
+
+                        <!-- Guard shown when no analysis has been run yet -->
+                        <div class="results-guard" id="results-guard">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+                            <h3>No analysis yet</h3>
+                            <p>Run the NER pipeline on a consultation first, then come back here to explore the transcript, entities, medications, safety alerts, SOAP note and FHIR bundle.</p>
+                            <a href="#/analyze" class="btn btn-primary" data-link>Go to Analyzer</a>
+                        </div>
+
+                        <!-- Sub-page: Overview -->
+                        <div class="results-subpage" id="sub-overview">
+                            <div class="rs-subpage-header">
+                                <div><h2>Overview</h2><p>A snapshot of this encounter's extraction &amp; safety results.</p></div>
+                            </div>
+                            <div class="overview-stats-grid" id="overview-stats-grid"></div>
+                            <div class="overview-grid-2">
+                                <div class="ov-card">
+                                    <h3>Entity Type Breakdown</h3>
+                                    <div id="overview-entity-breakdown"></div>
+                                </div>
+                                <div class="ov-card">
+                                    <h3>Top Safety Signals</h3>
+                                    <div id="overview-safety-preview"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sub-page: Transcript -->
+                        <div class="results-subpage" id="sub-transcript">
+                            <div class="rs-subpage-header">
+                                <div><h2>Clickable Transcript</h2><p>Every extracted span highlighted in context. Click any entity to inspect it.</p></div>
+                            </div>
+                            <div id="rtab-transcript"></div>
+                        </div>
+
+                        <!-- Sub-page: Entities -->
+                        <div class="results-subpage" id="sub-entities">
+                            <div class="rs-subpage-header">
+                                <div><h2>Entities Table</h2><p>All extracted spans with type, confidence and source sentence.</p></div>
+                            </div>
+                            <div class="table-card"><div id="rtab-entities"></div></div>
+                        </div>
+
+                        <!-- Sub-page: Medications -->
+                        <div class="results-subpage" id="sub-medications">
+                            <div class="rs-subpage-header">
+                                <div><h2>Medications &amp; RxNorm</h2><p>Extracted drug mentions normalized to a single RxNorm vocabulary.</p></div>
+                            </div>
+                            <div class="table-card"><div id="rtab-medications"></div></div>
+                        </div>
+
+                        <!-- Sub-page: Safety -->
+                        <div class="results-subpage" id="sub-safety">
+                            <div class="rs-subpage-header">
+                                <div><h2>Safety Alerts</h2><p>Drug–drug interactions, duplicate therapy and dosage conflicts — decision support only.</p></div>
+                            </div>
+                            <div id="rtab-safety"></div>
+                        </div>
+
+                        <!-- Sub-page: SOAP -->
+                        <div class="results-subpage" id="sub-soap">
+                            <div class="rs-subpage-header">
+                                <div><h2>SOAP Note</h2><p>Structured Subjective / Objective / Assessment / Plan synthesized from the dialogue.</p></div>
+                            </div>
+                            <div id="rtab-soap"></div>
+                        </div>
+
+                        <!-- Sub-page: FHIR -->
+                        <div class="results-subpage" id="sub-fhir">
+                            <div class="rs-subpage-header">
+                                <div><h2>FHIR Bundle</h2><p>Structured JSON payload aligned to FHIR resources, ready for EHR ingestion.</p></div>
+                            </div>
+                            <div class="fhir-card"><div id="rtab-fhir"></div></div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- =================== FOOTER =================== -->
+    <footer class="site-footer">
+        <div class="footer-container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <span class="footer-logo">MediScribe<span class="logo-ai">AI</span></span>
+                    <p>A real-time assistive clinical documentation system using Medical Named Entity Recognition and Large Language Models.</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-col">
+                        <h4>Navigate</h4>
+                        <a href="#/" data-link>Home</a>
+                        <a href="#/analyze" data-link>Analyzer</a>
+                        <a href="#/results" data-link>Results</a>
+                    </div>
+                    <div class="footer-col">
+                        <h4>Resources</h4>
+                        <a href="/docs">API Documentation</a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 MediScribe AI — Clinical documentation research project. Not for unsupervised clinical use.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

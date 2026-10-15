@@ -1,0 +1,8 @@
+{
+  "encounter_id": "demo-001",
+  "patient_id": "example-patient",
+  "turns": [
+    {"turn_id": "t1", "speaker": "patient", "text": "I have fever and cough for three days. Paracetamol 500 mg twice daily gave me nausea."},
+    {"turn_id": "t2", "speaker": "clinician", "text": "Continue paracetamol and order a complete blood count."}
+  ]
+}
