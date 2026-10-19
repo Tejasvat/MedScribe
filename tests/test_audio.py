@@ -293,3 +293,12 @@ def test_existing_pdf_workflow_still_functional():
         assert len(body["entities"]) > 0
         assert body["fhir_bundle"]["resourceType"] == "Bundle"
         assert body["_source"]["type"] == "pdf"
+
+
+def test_hinglish_adapter_availability():
+    """Verify Hinglish PolyWhisper adapter is recognized."""
+    from mediscribe.polywhisper import get_hinglish_transcriber
+    transcriber = get_hinglish_transcriber()
+    assert transcriber.is_available() is True
+    assert transcriber.adapter_path.name in ("hinglish_adapter.zip", "hinglish_adapter.pt")
+

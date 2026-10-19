@@ -266,7 +266,206 @@
         }
     };
 
-    // ==================== AUDIO CONSULTATION CONTROLLERS ====================
+    // ==================== AUDIO CONSULTATION & LIVE RECORDER CONTROLLERS ====================
+    let liveAudioContext = null;
+    let liveMediaStream = null;
+    let liveScriptProcessor = null;
+    let liveAudioBuffers = [];
+    let liveRecordingInterval = null;
+    let liveRecordingSeconds = 0;
+    let recordedWavFile = null;
+
+    window.switchAudioMode = function(mode) {
+        const recordBtn = document.getElementById('audioModeRecordBtn');
+        const uploadBtn = document.getElementById('audioModeUploadBtn');
+        const recordSec = document.getElementById('audioLiveRecordSection');
+        const uploadSec = document.getElementById('audioFileUploadSection');
+
+        if (mode === 'record') {
+            if (recordBtn) recordBtn.className = 'px-5 py-2 rounded-full text-xs font-bold transition-all bg-[#18191c] text-white shadow-sm flex items-center gap-1.5 active:scale-95';
+            if (uploadBtn) uploadBtn.className = 'px-5 py-2 rounded-full text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1.5 active:scale-95';
+            if (recordSec) {
+                recordSec.classList.remove('hidden');
+                recordSec.classList.add('flex');
+            }
+            if (uploadSec) {
+                uploadSec.classList.add('hidden');
+                uploadSec.classList.remove('flex');
+            }
+        } else {
+            if (uploadBtn) uploadBtn.className = 'px-5 py-2 rounded-full text-xs font-bold transition-all bg-[#18191c] text-white shadow-sm flex items-center gap-1.5 active:scale-95';
+            if (recordBtn) recordBtn.className = 'px-5 py-2 rounded-full text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1.5 active:scale-95';
+            if (uploadSec) {
+                uploadSec.classList.remove('hidden');
+                uploadSec.classList.add('flex');
+            }
+            if (recordSec) {
+                recordSec.classList.add('hidden');
+                recordSec.classList.remove('flex');
+            }
+        }
+    };
+
+    window.startBrowserLiveRecording = async function() {
+        try {
+            liveAudioBuffers = [];
+            liveRecordingSeconds = 0;
+            recordedWavFile = null;
+
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            liveAudioContext = new AudioContextClass({ sampleRate: 16000 });
+            liveMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+            const source = liveAudioContext.createMediaStreamSource(liveMediaStream);
+            liveScriptProcessor = liveAudioContext.createScriptProcessor(4096, 1, 1);
+
+            liveScriptProcessor.onaudioprocess = function(e) {
+                const input = e.inputBuffer.getChannelData(0);
+                liveAudioBuffers.push(new Float32Array(input));
+            };
+
+            source.connect(liveScriptProcessor);
+            liveScriptProcessor.connect(liveAudioContext.destination);
+
+            // UI state transitions
+            const idleView = document.getElementById('liveRecordIdleView');
+            const reviewView = document.getElementById('liveRecordReviewView');
+            const activeView = document.getElementById('liveRecordActiveView');
+            const statusCard = document.getElementById('audioProcessingStatusCard');
+
+            if (idleView) idleView.classList.add('hidden');
+            if (reviewView) reviewView.classList.add('hidden');
+            if (statusCard) statusCard.classList.add('hidden');
+            if (activeView) {
+                activeView.classList.remove('hidden');
+                activeView.classList.add('flex');
+            }
+
+            const timerEl = document.getElementById('liveRecordTimer');
+            if (timerEl) timerEl.textContent = '00:00:00';
+
+            liveRecordingInterval = setInterval(() => {
+                liveRecordingSeconds++;
+                const m = Math.floor(liveRecordingSeconds / 60).toString().padStart(2, '0');
+                const s = (liveRecordingSeconds % 60).toString().padStart(2, '0');
+                if (timerEl) timerEl.textContent = `00:${m}:${s}`;
+            }, 1000);
+
+            showToast('Microphone recording started. Speak now.', 'mic');
+        } catch (err) {
+            console.error('Microphone error:', err);
+            showToast('Microphone access denied: ' + (err.message || err), 'error');
+        }
+    };
+
+    window.stopBrowserLiveRecording = function(autoSubmit = true) {
+        if (liveRecordingInterval) {
+            clearInterval(liveRecordingInterval);
+            liveRecordingInterval = null;
+        }
+
+        if (liveScriptProcessor) {
+            liveScriptProcessor.disconnect();
+            liveScriptProcessor = null;
+        }
+
+        if (liveMediaStream) {
+            liveMediaStream.getTracks().forEach(t => t.stop());
+            liveMediaStream = null;
+        }
+
+        if (liveAudioContext) {
+            liveAudioContext.close();
+            liveAudioContext = null;
+        }
+
+        const activeView = document.getElementById('liveRecordActiveView');
+        if (activeView) {
+            activeView.classList.add('hidden');
+            activeView.classList.remove('flex');
+        }
+
+        if (liveAudioBuffers.length === 0) {
+            const idleView = document.getElementById('liveRecordIdleView');
+            if (idleView) idleView.classList.remove('hidden');
+            return;
+        }
+
+        // Encode to 16kHz standard mono WAV directly in browser
+        const wavBlob = encodeWavBlob(liveAudioBuffers, 16000);
+        recordedWavFile = new File([wavBlob], 'live_consultation.wav', { type: 'audio/wav' });
+
+        if (autoSubmit) {
+            selectedAudioFile = recordedWavFile;
+            runUploadedAudioProcessing();
+        } else {
+            const reviewView = document.getElementById('liveRecordReviewView');
+            if (reviewView) {
+                reviewView.classList.remove('hidden');
+                reviewView.classList.add('flex');
+            }
+            const player = document.getElementById('liveRecordAudioPlayer');
+            if (player) {
+                player.src = URL.createObjectURL(wavBlob);
+            }
+            const meta = document.getElementById('liveRecordMetaLabel');
+            if (meta) {
+                const sizeMb = (wavBlob.size / (1024 * 1024)).toFixed(2);
+                meta.textContent = `16kHz Mono WAV • ${liveRecordingSeconds}s • ${sizeMb} MB`;
+            }
+        }
+    };
+
+    window.submitLiveRecordedAudio = function() {
+        if (recordedWavFile) {
+            selectedAudioFile = recordedWavFile;
+            runUploadedAudioProcessing();
+        }
+    };
+
+    function encodeWavBlob(buffers, sampleRate = 16000) {
+        let totalLength = 0;
+        for (const b of buffers) totalLength += b.length;
+        const merged = new Float32Array(totalLength);
+        let offset = 0;
+        for (const b of buffers) {
+            merged.set(b, offset);
+            offset += b.length;
+        }
+
+        const buffer = new ArrayBuffer(44 + merged.length * 2);
+        const view = new DataView(buffer);
+
+        function writeString(v, off, str) {
+            for (let i = 0; i < str.length; i++) {
+                v.setUint8(off + i, str.charCodeAt(i));
+            }
+        }
+
+        writeString(view, 0, 'RIFF');
+        view.setUint32(4, 36 + merged.length * 2, true);
+        writeString(view, 8, 'WAVE');
+        writeString(view, 12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true); // PCM
+        view.setUint16(22, 1, true); // Mono
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        writeString(view, 36, 'data');
+        view.setUint32(40, merged.length * 2, true);
+
+        let pcmOffset = 44;
+        for (let i = 0; i < merged.length; i++) {
+            let s = Math.max(-1, Math.min(1, merged[i]));
+            view.setInt16(pcmOffset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            pcmOffset += 2;
+        }
+
+        return new Blob([view], { type: 'audio/wav' });
+    }
+
     window.handleStartAudioSelected = function(event) {
         const file = event.target.files[0];
         if (!file) return;
