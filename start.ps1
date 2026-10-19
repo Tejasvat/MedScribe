@@ -1,9 +1,16 @@
 # MediScribe AI — Server Start Script
 # Run this from the project root: .\start.ps1
-# Uses the system Python (where whisperx is installed) instead of the Windows Store Python.
 
 $env:PYTHONPATH = "src"
-$PYTHON = "C:\Users\tejas\AppData\Local\Programs\Python\Python312\python.exe"
+
+# Use python from active virtualenv, or 'py', or 'python'
+if (Test-Path ".venv\Scripts\python.exe") {
+    $PYTHON = ".venv\Scripts\python.exe"
+} elseif (Get-Command py -ErrorAction SilentlyContinue) {
+    $PYTHON = "py"
+} else {
+    $PYTHON = "python"
+}
 
 Write-Host "Starting MediScribe AI server..." -ForegroundColor Cyan
 Write-Host "Python: $PYTHON" -ForegroundColor DarkGray
